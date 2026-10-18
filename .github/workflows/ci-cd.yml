@@ -36,11 +36,25 @@ jobs:
       - name: PHP syntax check
         shell: bash
         run: |
-          find public src \
-            -type f \
-            -name '*.php' \
-            -print0 \
-          | xargs -0 -n1 php -l
+          set -euo pipefail
+
+          php_files=()
+
+          for dir in public src; do
+            if [[ -d "$dir" ]]; then
+              while IFS= read -r -d '' file; do
+                php_files+=("$file")
+              done < <(find "$dir" -type f -name '*.php' -print0)
+            fi
+          done
+
+          if (( ${#php_files[@]} == 0 )); then
+            echo "::notice::No se encontraron archivos PHP; se omite la comprobación de sintaxis."
+          else
+            for file in "${php_files[@]}"; do
+              php -l "$file"
+            done
+          fi
 
       - name: Docker build validation
         uses: docker/build-push-action@v7
